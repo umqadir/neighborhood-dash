@@ -1,0 +1,42 @@
+# Deploys a prebuilt site to GitHub Pages. The data build runs locally (it needs
+# large source files), so scripts/publish_pages.sh uploads the packaged site as a
+# release asset and this workflow publishes it.
+name: Deploy site to GitHub Pages
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag holding site.tar
+        required: true
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Download packaged site
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download "${{ inputs.tag }}" --repo "${{ github.repository }}" --pattern site.tar
+          mkdir site
+          tar -xf site.tar -C site
+          du -sh site
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4
